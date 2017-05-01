@@ -20,5 +20,5 @@ impl<T> FullDeref for T
 	type Target = <T::Target as FullDeref>::Target;
 
 	#[inline]
-	fn full_deref(&self) -> &Self::Target { (*self).full_deref() }
+	fn full_deref(&self) -> &Self::Target { (**self).full_deref() }
 }
