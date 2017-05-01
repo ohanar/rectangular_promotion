@@ -1,0 +1,10 @@
+array_layout = "Block"
+closure_block_indent_threshold = 0
+fn_args_layout = "Block"
+fn_call_style = "Block"
+fn_single_line = true
+generics_indent = "Block"
+hard_tabs = true
+match_block_trailing_comma = true
+reorder_imported_names = true
+tab_spaces = 2

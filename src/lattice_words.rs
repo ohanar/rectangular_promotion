@@ -34,15 +34,11 @@ impl LatticeWords {
 		while weight.last().map(|x| *x == 0).unwrap_or(false) {
 			weight.pop();
 		}
-		Ok(LatticeWords {
-			weight: weight.into_boxed_slice(),
-		})
+		Ok(LatticeWords { weight: weight.into_boxed_slice() })
 	}
 
 	#[inline]
-	pub fn weight(&self) -> &[u8] {
-		&*self.weight
-	}
+	pub fn weight(&self) -> &[u8] { &*self.weight }
 
 	#[inline]
 	pub fn streaming_iter(&self) -> LatticeWordsStreamingIter<&[u8]> {
@@ -56,9 +52,7 @@ impl LatticeWords {
 
 	#[inline]
 	pub fn iter(&self) -> LatticeWordsIter<&[u8]> {
-		LatticeWordsIter {
-			inner: self.streaming_iter(),
-		}
+		LatticeWordsIter { inner: self.streaming_iter() }
 	}
 }
 
@@ -67,11 +61,7 @@ impl IntoIterator for LatticeWords {
 	type IntoIter = LatticeWordsIter<Box<[u8]>>;
 
 	#[inline]
-	fn into_iter(self) -> Self::IntoIter {
-		LatticeWordsIter {
-			inner: self.into_streaming_iter(),
-		}
-	}
+	fn into_iter(self) -> Self::IntoIter { LatticeWordsIter { inner: self.into_streaming_iter() } }
 }
 
 #[inline]
@@ -92,9 +82,14 @@ fn init_starting_word(word: &mut [u8], weight: &[u8]) {
 	}
 }
 
-impl<T> LatticeWordsStreamingIter<T> where T: FullDeref<Target=[u8]> {
+impl<T> LatticeWordsStreamingIter<T>
+  where T: FullDeref<Target = [u8]>
+{
 	fn new(weight: T) -> Self {
-		let size = weight.full_deref().iter().fold(0, |partial, entry| partial + usize::from(*entry));
+		let size = weight
+			.full_deref()
+			.iter()
+			.fold(0, |partial, entry| partial + usize::from(*entry));
 		LatticeWordsStreamingIter {
 			weight: weight,
 			first_pass: true,
@@ -152,13 +147,13 @@ impl<T> LatticeWordsStreamingIter<T> where T: FullDeref<Target=[u8]> {
 	}
 }
 
-impl<T> Iterator for LatticeWordsIter<T> where T: FullDeref<Target=[u8]> {
+impl<T> Iterator for LatticeWordsIter<T>
+  where T: FullDeref<Target = [u8]>
+{
 	type Item = LatticeWord<Box<[u8]>>;
 
 	#[inline]
-	fn next(&mut self) -> Option<Self::Item> {
-		self.inner.next().map(|x| Self::Item::from(&x))
-	}
+	fn next(&mut self) -> Option<Self::Item> { self.inner.next().map(|x| Self::Item::from(&x)) }
 }
 
 impl<T> FusedIterator for LatticeWordsIter<T> where Self: Iterator {}
@@ -189,7 +184,9 @@ mod tests {
 
 	#[test]
 	fn large_count() {
-		let mut iter = LatticeWords::new(vec![4, 4, 4, 4]).unwrap().into_streaming_iter();
+		let mut iter = LatticeWords::new(vec![4, 4, 4, 4])
+			.unwrap()
+			.into_streaming_iter();
 		let mut n = 0;
 
 		while let Some(_) = iter.next() {
@@ -202,7 +199,9 @@ mod tests {
 	#[cfg(feature = "long_tests")]
 	#[test]
 	fn very_large_count() {
-		let mut iter = LatticeWords::new(vec![5, 5, 5, 5, 5]).unwrap().into_streaming_iter();
+		let mut iter = LatticeWords::new(vec![5, 5, 5, 5, 5])
+			.unwrap()
+			.into_streaming_iter();
 		let mut n = 0;
 
 		while let Some(_) = iter.next() {

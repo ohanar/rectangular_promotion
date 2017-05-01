@@ -14,14 +14,13 @@ pub struct EnumeratedPairs<T> {
 
 impl<T> Pairs<T> {
 	#[inline]
-	pub fn enumerate(self) -> EnumeratedPairs<T> {
-		EnumeratedPairs {
-			inner: self
-		}
-	}
+	pub fn enumerate(self) -> EnumeratedPairs<T> { EnumeratedPairs { inner: self } }
 }
 
-impl<T, U> Iterator for Pairs<T> where T: FullDeref<Target=[U]>, U: Copy {
+impl<T, U> Iterator for Pairs<T>
+	where T: FullDeref<Target = [U]>,
+	      U: Copy
+{
 	type Item = (U, U);
 
 	#[inline]
@@ -38,7 +37,9 @@ impl<T, U> Iterator for Pairs<T> where T: FullDeref<Target=[U]>, U: Copy {
 
 impl<T> FusedIterator for Pairs<T> where Self: Iterator {}
 
-impl<T> Iterator for EnumeratedPairs<T> where Pairs<T>: Iterator {
+impl<T> Iterator for EnumeratedPairs<T>
+  where Pairs<T>: Iterator
+{
 	type Item = (usize, <Pairs<T> as Iterator>::Item);
 
 	#[inline]
@@ -48,7 +49,7 @@ impl<T> Iterator for EnumeratedPairs<T> where Pairs<T>: Iterator {
 	}
 }
 
-impl<T> FusedIterator for EnumeratedPairs<T> where Pairs<T>: FusedIterator {} 
+impl<T> FusedIterator for EnumeratedPairs<T> where Pairs<T>: FusedIterator {}
 
 pub trait IntoPairs: Sized {
 	fn into_pairs(self) -> Pairs<Self>;

@@ -26,7 +26,9 @@ pub struct TableauCyclicDescentIter<T, U> {
 	hole_column: u8,
 }
 
-impl<T> LatticeWord<T> where T: FullDeref<Target=[u8]> {
+impl<T> LatticeWord<T>
+  where T: FullDeref<Target = [u8]>
+{
 	pub fn new(inner: T) -> Result<Self, &'static str> {
 		{
 			let inner = inner.full_deref();
@@ -46,11 +48,7 @@ impl<T> LatticeWord<T> where T: FullDeref<Target=[u8]> {
 	}
 
 	#[inline]
-	pub fn unchecked_new(inner: T) -> Self {
-		LatticeWord {
-			inner: inner
-		}
-	}
+	pub fn unchecked_new(inner: T) -> Self { LatticeWord { inner: inner } }
 
 	#[inline]
 	pub fn descents(&self) -> ScentIter<&[u8]> {
@@ -58,9 +56,7 @@ impl<T> LatticeWord<T> where T: FullDeref<Target=[u8]> {
 	}
 
 	#[inline]
-	pub fn into_descents(self) -> ScentIter<T> {
-		ScentIter::new(self.inner, Ordering::Less)
-	}
+	pub fn into_descents(self) -> ScentIter<T> { ScentIter::new(self.inner, Ordering::Less) }
 
 	#[inline]
 	pub fn ascents(&self) -> ScentIter<&[u8]> {
@@ -68,14 +64,10 @@ impl<T> LatticeWord<T> where T: FullDeref<Target=[u8]> {
 	}
 
 	#[inline]
-	pub fn into_ascents(self) -> ScentIter<T> {
-		ScentIter::new(self.inner, Ordering::Greater)
-	}
+	pub fn into_ascents(self) -> ScentIter<T> { ScentIter::new(self.inner, Ordering::Greater) }
 
 	#[inline]
-	pub fn major_index(&self) -> usize {
-		self.ascents().fold(0, |partial, x| partial + x)
-	}
+	pub fn major_index(&self) -> usize { self.ascents().fold(0, |partial, x| partial + x) }
 
 	#[inline]
 	pub fn tableau_cyclic_descents(&self) -> TableauCyclicDescentIter<&[u8], Box<[u8]>> {
@@ -83,8 +75,11 @@ impl<T> LatticeWord<T> where T: FullDeref<Target=[u8]> {
 	}
 
 	#[inline]
-	pub fn tableau_cyclic_descents_with_tracking_shape<U>(&self, tracking_shape: U) -> TableauCyclicDescentIter<&[u8], U>
-		where U: Deref<Target=[u8]> + DerefMut
+	pub fn tableau_cyclic_descents_with_tracking_shape<U>(
+		&self,
+		tracking_shape: U,
+	) -> TableauCyclicDescentIter<&[u8], U>
+		where U: Deref<Target = [u8]> + DerefMut
 	{
 		TableauCyclicDescentIter::with_tracking_shape(self.inner.full_deref(), tracking_shape)
 	}
@@ -116,7 +111,9 @@ impl<T> LatticeWord<T> where T: FullDeref<Target=[u8]> {
 		*tracking_shape.last_mut().unwrap() = 1;
 
 		for current_row in new_inner.iter_mut().rev() {
-			let current_column = tracking_shape.get_mut(usize::from(*current_row - first)).unwrap();
+			let current_column = tracking_shape
+				.get_mut(usize::from(*current_row - first))
+				.unwrap();
 			*current_column += 1;
 
 			if *current_row == hole_row {
@@ -140,7 +137,9 @@ pub struct IntoIter<T> {
 	index: usize,
 }
 
-impl<T> IntoIterator for LatticeWord<T> where T: FullDeref<Target=[u8]> {
+impl<T> IntoIterator for LatticeWord<T>
+  where T: FullDeref<Target = [u8]>
+{
 	type Item = u8;
 	type IntoIter = IntoIter<T>;
 
@@ -153,7 +152,9 @@ impl<T> IntoIterator for LatticeWord<T> where T: FullDeref<Target=[u8]> {
 	}
 }
 
-impl<T> Iterator for IntoIter<T> where T: FullDeref<Target=[u8]> {
+impl<T> Iterator for IntoIter<T>
+  where T: FullDeref<Target = [u8]>
+{
 	type Item = u8;
 
 	#[inline]
@@ -167,7 +168,9 @@ impl<T> Iterator for IntoIter<T> where T: FullDeref<Target=[u8]> {
 	}
 }
 
-impl<T> ScentIter<T> where T: FullDeref<Target=[u8]> {
+impl<T> ScentIter<T>
+  where T: FullDeref<Target = [u8]>
+{
 	#[inline]
 	fn new(word: T, ordering: Ordering) -> Self {
 		ScentIter {
@@ -177,7 +180,9 @@ impl<T> ScentIter<T> where T: FullDeref<Target=[u8]> {
 	}
 }
 
-impl<'a, T> Iterator for ScentIter<T> where T: FullDeref<Target=[u8]> {
+impl<'a, T> Iterator for ScentIter<T>
+  where T: FullDeref<Target = [u8]>
+{
 	type Item = usize;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -191,10 +196,13 @@ impl<'a, T> Iterator for ScentIter<T> where T: FullDeref<Target=[u8]> {
 	}
 }
 
-impl<'a, T> TableauCyclicDescentIter<T, Box<[u8]>> where T: FullDeref<Target=[u8]> {
+impl<'a, T> TableauCyclicDescentIter<T, Box<[u8]>>
+  where T: FullDeref<Target = [u8]>
+{
 	#[inline]
 	fn new(word: T) -> Self {
-		let len = usize::from(word.full_deref().last().unwrap() - word.full_deref().first().unwrap()) + 1;
+		let len = usize::from(word.full_deref().last().unwrap() - word.full_deref().first().unwrap(),) +
+		          1;
 		let mut tracking_shape = Vec::with_capacity(len);
 		unsafe {
 			tracking_shape.set_len(len);
@@ -204,7 +212,10 @@ impl<'a, T> TableauCyclicDescentIter<T, Box<[u8]>> where T: FullDeref<Target=[u8
 	}
 }
 
-impl<'a, T, U> TableauCyclicDescentIter<T, U> where T: FullDeref<Target=[u8]>, U: Deref<Target=[u8]> + DerefMut {
+impl<'a, T, U> TableauCyclicDescentIter<T, U>
+	where T: FullDeref<Target = [u8]>,
+	      U: Deref<Target = [u8]> + DerefMut
+{
 	fn with_tracking_shape(word: T, mut tracking_shape: U) -> Self {
 		tracking_shape[0] = 1;
 		for entry in &mut tracking_shape[1..] {
@@ -222,14 +233,20 @@ impl<'a, T, U> TableauCyclicDescentIter<T, U> where T: FullDeref<Target=[u8]>, U
 	}
 }
 
-impl<'a, T, U> Iterator for TableauCyclicDescentIter<T, U> where T: FullDeref<Target=[u8]>, U: Deref<Target=[u8]> + DerefMut {
+impl<'a, T, U> Iterator for TableauCyclicDescentIter<T, U>
+	where T: FullDeref<Target = [u8]>,
+	      U: Deref<Target = [u8]> + DerefMut
+{
 	type Item = usize;
-	
+
 	fn next(&mut self) -> Option<Self::Item> {
 		for (index, (first, second)) in &mut self.iter {
 			let current_row = second - self.base;
-			let current_column = self.tracking_shape.get_mut(usize::from(current_row)).unwrap();
-			
+			let current_column = self
+				.tracking_shape
+				.get_mut(usize::from(current_row))
+				.unwrap();
+
 			*current_column += 1;
 
 			if current_row == self.hole_row {
@@ -256,17 +273,19 @@ impl<'a, T, U> Iterator for TableauCyclicDescentIter<T, U> where T: FullDeref<Ta
 	}
 }
 
-impl<T> Deref for LatticeWord<T> where T: FullDeref<Target=[u8]> {
+impl<T> Deref for LatticeWord<T>
+  where T: FullDeref<Target = [u8]>
+{
 	type Target = [u8];
 
 	#[inline]
-	fn deref(&self) -> &Self::Target {
-		self.inner.full_deref()
-	}
+	fn deref(&self) -> &Self::Target { self.inner.full_deref() }
 }
 
 
-impl<'a, T> From<&'a LatticeWord<T>> for LatticeWord<Box<[u8]>> where T: Deref<Target=[u8]> {
+impl<'a, T> From<&'a LatticeWord<T>> for LatticeWord<Box<[u8]>>
+  where T: Deref<Target = [u8]>
+{
 	#[inline]
 	fn from(x: &'a LatticeWord<T>) -> Self {
 		let mut inner = Vec::with_capacity(x.len());
@@ -277,9 +296,7 @@ impl<'a, T> From<&'a LatticeWord<T>> for LatticeWord<Box<[u8]>> where T: Deref<T
 
 impl From<LatticeWord<Box<[u8]>>> for LatticeWord<Arc<Box<[u8]>>> {
 	#[inline]
-	fn from(x: LatticeWord<Box<[u8]>>) -> Self {
-		LatticeWord::unchecked_new(Arc::new(x.inner))
-	}
+	fn from(x: LatticeWord<Box<[u8]>>) -> Self { LatticeWord::unchecked_new(Arc::new(x.inner)) }
 }
 
 #[cfg(test)]
@@ -303,17 +320,26 @@ mod test {
 	#[test]
 	fn tableau_cyclic_descents() {
 		let raw_lattice_word = [0, 0, 1, 0, 1, 2, 2, 1, 0, 2, 1, 2];
-		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..]).unwrap().tableau_cyclic_descents().collect();
+		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..])
+			.unwrap()
+			.tableau_cyclic_descents()
+			.collect();
 
 		assert_eq!(&*tableau_cyclic_descents, &[2, 4, 5, 9, 11]);
 
 		let raw_lattice_word = [0, 0, 0, 1, 0, 1, 2, 2, 1, 1, 2, 2];
-		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..]).unwrap().tableau_cyclic_descents().collect();
+		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..])
+			.unwrap()
+			.tableau_cyclic_descents()
+			.collect();
 
 		assert_eq!(&*tableau_cyclic_descents, &[3, 5, 6, 10, 12]);
 
 		let raw_lattice_word = [1, 1, 1, 2, 1, 2, 3, 3, 2, 2, 3, 3];
-		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..]).unwrap().tableau_cyclic_descents().collect();
+		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..])
+			.unwrap()
+			.tableau_cyclic_descents()
+			.collect();
 
 		assert_eq!(&*tableau_cyclic_descents, &[3, 5, 6, 10, 12]);
 	}
@@ -334,6 +360,9 @@ mod test {
 		let raw_lattice_word = [1, 1, 2, 1, 2, 3, 3, 2, 1, 3, 2, 3];
 		let lattice_word = LatticeWord::new(&raw_lattice_word[..]).unwrap();
 
-		assert_eq!(&*lattice_word.promotion(), &[1, 1, 1, 2, 1, 2, 3, 3, 2, 2, 3, 3]);
+		assert_eq!(
+			&*lattice_word.promotion(),
+			&[1, 1, 1, 2, 1, 2, 3, 3, 2, 2, 3, 3]
+		);
 	}
 }

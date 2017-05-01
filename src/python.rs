@@ -5,7 +5,7 @@ use std::hash;
 use std::sync::Arc;
 
 use cpython::{CompareOp, PyClone, PyDict, PyErr, PyObject, PyResult, PythonObject, ToPyObject};
-use cpython::exc::{IndexError, ValueError};
+use cpython::exc::{IndexError, NotImplementedError, ValueError};
 
 use seahash::SeaHasher;
 
@@ -15,9 +15,7 @@ impl hash::BuildHasher for SeaHashBuilder {
 	type Hasher = SeaHasher;
 
 	#[inline]
-	fn build_hasher(&self) -> Self::Hasher {
-		SeaHasher::new()
-	}
+	fn build_hasher(&self) -> Self::Hasher { SeaHasher::new() }
 }
 
 py_class!(pub class LatticeWords |py| {
