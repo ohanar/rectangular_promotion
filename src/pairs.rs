@@ -38,7 +38,7 @@ impl<T, U> Iterator for Pairs<T>
 impl<T> FusedIterator for Pairs<T> where Self: Iterator {}
 
 impl<T> Iterator for EnumeratedPairs<T>
-  where Pairs<T>: Iterator
+	where Pairs<T>: Iterator
 {
 	type Item = (usize, <Pairs<T> as Iterator>::Item);
 

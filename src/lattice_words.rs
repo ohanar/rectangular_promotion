@@ -83,7 +83,7 @@ fn init_starting_word(word: &mut [u8], weight: &[u8]) {
 }
 
 impl<T> LatticeWordsStreamingIter<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	fn new(weight: T) -> Self {
 		let size = weight
@@ -148,7 +148,7 @@ impl<T> LatticeWordsStreamingIter<T>
 }
 
 impl<T> Iterator for LatticeWordsIter<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	type Item = LatticeWord<Box<[u8]>>;
 

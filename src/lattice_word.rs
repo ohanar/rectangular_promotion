@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use full_deref::FullDeref;
@@ -52,7 +53,7 @@ fn is_rectangle(word: &[u8]) -> bool {
 }
 
 impl<T> LatticeWord<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	pub fn new(inner: T) -> Result<Self, &'static str> {
 		{
@@ -171,7 +172,7 @@ pub struct IntoIter<T> {
 }
 
 impl<T> IntoIterator for LatticeWord<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	type Item = u8;
 	type IntoIter = IntoIter<T>;
@@ -186,7 +187,7 @@ impl<T> IntoIterator for LatticeWord<T>
 }
 
 impl<T> Iterator for IntoIter<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	type Item = u8;
 
@@ -202,7 +203,7 @@ impl<T> Iterator for IntoIter<T>
 }
 
 impl<T> ScentIter<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	#[inline]
 	fn new(word: T, ordering: Ordering) -> Self {
@@ -214,7 +215,7 @@ impl<T> ScentIter<T>
 }
 
 impl<'a, T> Iterator for ScentIter<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	type Item = usize;
 
@@ -230,7 +231,7 @@ impl<'a, T> Iterator for ScentIter<T>
 }
 
 impl<'a, T> TableauCyclicDescentIter<T, Box<[u8]>>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	#[inline]
 	fn new(word: T) -> Result<Self, &'static str> {
@@ -315,7 +316,7 @@ impl<'a, T, U> Iterator for TableauCyclicDescentIter<T, U>
 }
 
 impl<T> Deref for LatticeWord<T>
-  where T: FullDeref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	type Target = [u8];
 
@@ -325,19 +326,29 @@ impl<T> Deref for LatticeWord<T>
 
 
 impl<'a, T> From<&'a LatticeWord<T>> for LatticeWord<Box<[u8]>>
-  where T: Deref<Target = [u8]>
+	where T: FullDeref<Target = [u8]>
 {
 	#[inline]
 	fn from(x: &'a LatticeWord<T>) -> Self {
+		let x = x.full_deref();
 		let mut inner = Vec::with_capacity(x.len());
-		inner.extend_from_slice(&*x);
+		inner.extend_from_slice(x);
 		LatticeWord::unchecked_new(inner.into_boxed_slice())
 	}
 }
 
-impl From<LatticeWord<Box<[u8]>>> for LatticeWord<Arc<Box<[u8]>>> {
+impl<T> From<LatticeWord<T>> for LatticeWord<Rc<T>>
+	where T: FullDeref<Target = [u8]>
+{
 	#[inline]
-	fn from(x: LatticeWord<Box<[u8]>>) -> Self { LatticeWord::unchecked_new(Arc::new(x.inner)) }
+	fn from(x: LatticeWord<T>) -> Self { LatticeWord::unchecked_new(Rc::new(x.inner)) }
+}
+
+impl<T> From<LatticeWord<T>> for LatticeWord<Arc<T>>
+	where T: FullDeref<Target = [u8]>
+{
+	#[inline]
+	fn from(x: LatticeWord<T>) -> Self { LatticeWord::unchecked_new(Arc::new(x.inner)) }
 }
 
 #[cfg(test)]
