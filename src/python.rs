@@ -36,9 +36,25 @@ py_class!(pub class LatticeWords |py| {
 	}
 
 	def maj_cdes_dict(&self) -> PyResult<PyDict> {
+		let lattice_words = self.lattice_words(py);
+
+		{
+			let mut iter = lattice_words.weight().iter();
+			let first = iter.next();
+			for entry in iter {
+				if Some(entry) != first {
+					return Err(
+						PyErr::new_lazy_init(
+							py.get_type::<NotImplementedError>(),
+							Some("only implemented for rectangular shapes".to_py_object(py).into_object()),
+						)
+					)
+				}
+			}
+		}
+
 		let mut map = HashMap::with_hasher(SeaHashBuilder);
 
-		let lattice_words = self.lattice_words(py);
 		let mut tracking_shape = Vec::with_capacity(lattice_words.weight().len());
 		unsafe {
 			tracking_shape.set_len(lattice_words.weight().len());
@@ -78,7 +94,7 @@ py_class!(pub class LatticeWords |py| {
 			res.push_str("lattice words of weight ");
 
 			write!(&mut res, "{}", first_elt).unwrap();
-			
+
 			for elt in iter {
 				res.push_str(", ");
 				write!(&mut res, "{}", elt).unwrap();
@@ -153,7 +169,7 @@ py_class!(pub class LatticeWord |py| {
 		Ok(if let Some(first_elt) = iter.next() {
 			let (lower_hint, _) = iter.size_hint();
 
-			if *self.lattice_word(py).iter().max().unwrap() < 10 { 
+			if *self.lattice_word(py).iter().max().unwrap() < 10 {
 				let mut res = String::with_capacity(14 + lower_hint);
 
 				res.push_str("lattice word ");
@@ -201,11 +217,23 @@ py_class!(pub class LatticeWord |py| {
 	}
 
 	def promotion(&self) -> PyResult<Self> {
-		Self::create_instance(py, self.lattice_word(py).promotion().into())
+		match self.lattice_word(py).promotion() {
+			Ok(word) => Self::create_instance(py, word.into()),
+			Err(s) => Err(PyErr::new_lazy_init(
+				py.get_type::<NotImplementedError>(),
+				Some(s.to_py_object(py).into_object()),
+			)),
+		}
 	}
 
 	def tableau_cyclic_descents(&self) -> PyResult<TableauCyclicDescentIter> {
-		TableauCyclicDescentIter::create_instance(py, RefCell::new(self.lattice_word(py).clone().into_tableau_cyclic_descents()))
+		match self.lattice_word(py).clone().into_tableau_cyclic_descents() {
+			Ok(iter) => TableauCyclicDescentIter::create_instance(py, RefCell::new(iter)),
+			Err(s) => Err(PyErr::new_lazy_init(
+				py.get_type::<NotImplementedError>(),
+				Some(s.to_py_object(py).into_object()),
+			)),
+		}
 	}
 });
 

@@ -26,6 +26,31 @@ pub struct TableauCyclicDescentIter<T, U> {
 	hole_column: u8,
 }
 
+fn is_rectangle(word: &[u8]) -> bool {
+	let min = word[0];
+	let mut max = min;
+
+	let mut min_count = 0;
+	let mut max_count = 0;
+
+	for character in word {
+		if *character > max {
+			max = *character;
+			max_count = 0;
+		}
+
+		if *character == min {
+			min_count += 1;
+		}
+
+		if *character == max {
+			max_count += 1;
+		}
+	}
+
+	min_count == max_count
+}
+
 impl<T> LatticeWord<T>
   where T: FullDeref<Target = [u8]>
 {
@@ -70,12 +95,14 @@ impl<T> LatticeWord<T>
 	pub fn major_index(&self) -> usize { self.ascents().fold(0, |partial, x| partial + x) }
 
 	#[inline]
-	pub fn tableau_cyclic_descents(&self) -> TableauCyclicDescentIter<&[u8], Box<[u8]>> {
+	pub fn tableau_cyclic_descents(
+		&self,
+	) -> Result<TableauCyclicDescentIter<&[u8], Box<[u8]>>, &'static str> {
 		TableauCyclicDescentIter::new(self.inner.full_deref())
 	}
 
 	#[inline]
-	pub fn tableau_cyclic_descents_with_tracking_shape<U>(
+	pub(crate) fn tableau_cyclic_descents_with_tracking_shape<U>(
 		&self,
 		tracking_shape: U,
 	) -> TableauCyclicDescentIter<&[u8], U>
@@ -85,13 +112,19 @@ impl<T> LatticeWord<T>
 	}
 
 	#[inline]
-	pub fn into_tableau_cyclic_descents(self) -> TableauCyclicDescentIter<T, Box<[u8]>> {
+	pub fn into_tableau_cyclic_descents(
+		self,
+	) -> Result<TableauCyclicDescentIter<T, Box<[u8]>>, &'static str> {
 		TableauCyclicDescentIter::new(self.inner)
 	}
 
-	pub fn promotion(&self) -> LatticeWord<Box<[u8]>> {
+	pub fn promotion(&self) -> Result<LatticeWord<Box<[u8]>>, &'static str> {
 		if self.is_empty() {
-			return LatticeWord::unchecked_new(Box::new([]));
+			return Ok(LatticeWord::unchecked_new(Box::new([])));
+		}
+
+		if !is_rectangle(&*self) {
+			return Err("only implemented for rectangular shapes");
 		}
 
 		let first = self.first().unwrap();
@@ -127,7 +160,7 @@ impl<T> LatticeWord<T>
 			}
 		}
 
-		LatticeWord::unchecked_new(new_inner)
+		Ok(LatticeWord::unchecked_new(new_inner))
 	}
 }
 
@@ -200,15 +233,23 @@ impl<'a, T> TableauCyclicDescentIter<T, Box<[u8]>>
   where T: FullDeref<Target = [u8]>
 {
 	#[inline]
-	fn new(word: T) -> Self {
-		let len = usize::from(word.full_deref().last().unwrap() - word.full_deref().first().unwrap(),) +
-		          1;
+	fn new(word: T) -> Result<Self, &'static str> {
+		let len = {
+			let w = word.full_deref();
+
+			if !is_rectangle(w) {
+				return Err("only implemented for rectangular shapes");
+			}
+
+			usize::from(w.last().unwrap() - w.first().unwrap()) + 1
+		};
+
 		let mut tracking_shape = Vec::with_capacity(len);
 		unsafe {
 			tracking_shape.set_len(len);
 		}
 
-		Self::with_tracking_shape(word, tracking_shape.into_boxed_slice())
+		Ok(Self::with_tracking_shape(word, tracking_shape.into_boxed_slice()))
 	}
 }
 
@@ -323,6 +364,7 @@ mod test {
 		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..])
 			.unwrap()
 			.tableau_cyclic_descents()
+			.unwrap()
 			.collect();
 
 		assert_eq!(&*tableau_cyclic_descents, &[2, 4, 5, 9, 11]);
@@ -331,6 +373,7 @@ mod test {
 		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..])
 			.unwrap()
 			.tableau_cyclic_descents()
+			.unwrap()
 			.collect();
 
 		assert_eq!(&*tableau_cyclic_descents, &[3, 5, 6, 10, 12]);
@@ -339,6 +382,7 @@ mod test {
 		let tableau_cyclic_descents: Vec<_> = LatticeWord::new(&raw_lattice_word[..])
 			.unwrap()
 			.tableau_cyclic_descents()
+			.unwrap()
 			.collect();
 
 		assert_eq!(&*tableau_cyclic_descents, &[3, 5, 6, 10, 12]);
@@ -349,11 +393,11 @@ mod test {
 		let raw_lattice_word = [0, 0, 1, 0, 1, 2, 2, 1, 0, 2, 1, 2];
 		let lattice_word = LatticeWord::new(&raw_lattice_word[..]).unwrap();
 
-		let first_promotion = lattice_word.promotion();
+		let first_promotion = lattice_word.promotion().unwrap();
 
 		assert_eq!(&*first_promotion, &[0, 0, 0, 1, 0, 1, 2, 2, 1, 1, 2, 2]);
 
-		let second_promotion = first_promotion.promotion();
+		let second_promotion = first_promotion.promotion().unwrap();
 
 		assert_eq!(&*second_promotion, &[0, 1, 0, 0, 1, 0, 1, 2, 2, 2, 1, 2]);
 
@@ -361,7 +405,7 @@ mod test {
 		let lattice_word = LatticeWord::new(&raw_lattice_word[..]).unwrap();
 
 		assert_eq!(
-			&*lattice_word.promotion(),
+			&*lattice_word.promotion().unwrap(),
 			&[1, 1, 1, 2, 1, 2, 3, 3, 2, 2, 3, 3]
 		);
 	}

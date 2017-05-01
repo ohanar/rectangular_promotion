@@ -8,3 +8,4 @@ hard_tabs = true
 match_block_trailing_comma = true
 reorder_imported_names = true
 tab_spaces = 2
+fn_args_paren_newline = false
