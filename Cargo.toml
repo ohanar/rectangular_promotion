@@ -1,0 +1,16 @@
+[package]
+name = "rectangular_promotion"
+version = "0.1.0"
+authors = ["R. Andrew Ohana <andrew.ohana@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+seahash = "^3.0.5"
+
+[dependencies.cpython]
+git = "https://github.com/dgrunwald/rust-cpython.git"
+branch = "master"
+default-features = false
+features = ["python27-sys", "extension-module-2-7"]
