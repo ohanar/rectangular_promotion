@@ -1,10 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::hash;
+use std::{cmp, hash};
 use std::sync::Arc;
 
-use cpython::{CompareOp, PyClone, PyDict, PyErr, PyObject, PyResult, PythonObject, ToPyObject};
+use cpython::{CompareOp, PyClone, PyDict, PyErr, PyObject, PyResult, Python, PythonObject, ToPyObject};
 use cpython::exc::{IndexError, NotImplementedError, ValueError};
 
 use seahash::SeaHasher;
@@ -16,6 +16,25 @@ impl hash::BuildHasher for SeaHashBuilder {
 
 	#[inline]
 	fn build_hasher(&self) -> Self::Hasher { SeaHasher::new() }
+}
+
+fn generating_function<F, K>(py: Python, lattice_words: &super::LatticeWords, mut f: F) -> PyResult<PyDict>
+	where F: FnMut(super::LatticeWord<&[u8]>) -> K,
+	      K: cmp::Eq + hash::Hash + ToPyObject,
+{
+	let mut map = HashMap::with_hasher(SeaHashBuilder);
+
+	let mut iter = lattice_words.streaming_iter();
+	while let Some(word) = iter.next() {
+		*map.entry(f(word)).or_insert(0) += 1;
+	}
+
+	let dict = PyDict::new(py);
+	for (key, value) in map {
+		dict.set_item(py, key, value)?;
+	};
+
+	Ok(dict)
 }
 
 py_class!(pub class LatticeWords |py| {
@@ -53,25 +72,34 @@ py_class!(pub class LatticeWords |py| {
 			}
 		}
 
-		let mut map = HashMap::with_hasher(SeaHashBuilder);
-
 		let mut tracking_shape = Vec::with_capacity(lattice_words.weight().len());
 		unsafe {
 			tracking_shape.set_len(lattice_words.weight().len());
 		}
-		let mut iter = lattice_words.streaming_iter();
-		while let Some(word) = iter.next() {
-			let maj = word.major_index();
-			let cdes = word.tableau_cyclic_descents_with_tracking_shape(&mut *tracking_shape).count();
 
-			*map.entry((maj, cdes)).or_insert(0) += 1;
-		}
+		generating_function(
+			py,
+			lattice_words,
+			|word|
+				(
+					word.major_index(),
+					word.tableau_cyclic_descents_with_tracking_shape(&mut *tracking_shape).count(),
+				),
+		)
+	}
 
-		let dict = PyDict::new(py);
-		for (key, value) in map {
-			dict.set_item(py, key, value)?;
-		};
-		Ok(dict)
+	def maj_des_dict(&self) -> PyResult<PyDict> {
+		let lattice_words = self.lattice_words(py);
+
+		generating_function(
+			py,
+			lattice_words,
+			|word|
+				(
+					word.major_index(),
+					word.ascents().count(),
+				),
+		)
 	}
 
 	def __iter__(&self) -> PyResult<LatticeWordsIter> {
