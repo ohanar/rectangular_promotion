@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::{cmp, hash};
 use std::sync::Arc;
 
-use cpython::{CompareOp, PyClone, PyDict, PyErr, PyObject, PyResult, Python, PythonObject, ToPyObject};
+use cpython::{CompareOp, PyClone, PyErr, PyObject, PyResult, PythonObject, ToPyObject};
 use cpython::exc::{IndexError, NotImplementedError, ValueError};
 
 use seahash::SeaHasher;
@@ -18,7 +18,7 @@ impl hash::BuildHasher for SeaHashBuilder {
 	fn build_hasher(&self) -> Self::Hasher { SeaHasher::new() }
 }
 
-fn generating_function<F, K>(py: Python, lattice_words: &super::LatticeWords, mut f: F) -> PyResult<PyDict>
+fn generating_function<F, K>(lattice_words: &super::LatticeWords, mut f: F) -> HashMap<K, usize, SeaHashBuilder>
 	where F: FnMut(super::LatticeWord<&[u8]>) -> K,
 	      K: cmp::Eq + hash::Hash + ToPyObject,
 {
@@ -29,12 +29,7 @@ fn generating_function<F, K>(py: Python, lattice_words: &super::LatticeWords, mu
 		*map.entry(f(word)).or_insert(0) += 1;
 	}
 
-	let dict = PyDict::new(py);
-	for (key, value) in map {
-		dict.set_item(py, key, value)?;
-	};
-
-	Ok(dict)
+	map
 }
 
 py_class!(pub class LatticeWords |py| {
@@ -54,7 +49,7 @@ py_class!(pub class LatticeWords |py| {
 		}
 	}
 
-	def maj_cdes_dict(&self) -> PyResult<PyDict> {
+	def maj_cdes_dict(&self) -> PyResult<HashMap<(usize, usize), usize, SeaHashBuilder>> {
 		let lattice_words = self.lattice_words(py);
 
 		{
@@ -77,29 +72,27 @@ py_class!(pub class LatticeWords |py| {
 			tracking_shape.set_len(lattice_words.weight().len());
 		}
 
-		generating_function(
-			py,
+		Ok(generating_function(
 			lattice_words,
 			|word|
 				(
 					word.major_index(),
 					word.tableau_cyclic_descents_with_tracking_shape(&mut *tracking_shape).count(),
 				),
-		)
+		))
 	}
 
-	def maj_des_dict(&self) -> PyResult<PyDict> {
+	def maj_des_dict(&self) -> PyResult<HashMap<(usize, usize), usize, SeaHashBuilder>> {
 		let lattice_words = self.lattice_words(py);
 
-		generating_function(
-			py,
+		Ok(generating_function(
 			lattice_words,
 			|word|
 				(
 					word.major_index(),
 					word.ascents().count(),
 				),
-		)
+		))
 	}
 
 	def __iter__(&self) -> PyResult<LatticeWordsIter> {
