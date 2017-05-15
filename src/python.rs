@@ -174,15 +174,29 @@ py_class!(pub class LatticeWord |py| {
 		Ok(self.lattice_word(py).len())
 	}
 
-	def __getitem__(&self, index: usize) -> PyResult<u8> {
-		match self.lattice_word(py).get(index) {
-			Some(value) => Ok(*value),
-			None => Err(PyErr::new_lazy_init(
+	def __getitem__(&self, index: isize) -> PyResult<u8> {
+		macro_rules! out_of_range {
+			() => (Err(PyErr::new_lazy_init(
 				py.get_type::<IndexError>(),
 				Some("index out of range".to_py_object(py).into_object()),
-			))
+			)));
+		}
+
+		let mut index = index;
+		let lattice_word = self.lattice_word(py);
+
+		if index < 0 {
+			index += lattice_word.len() as isize;
+			if index < 0 {
+				return out_of_range!();
 			}
 		}
+
+		match self.lattice_word(py).get(index as usize) {
+			Some(value) => Ok(*value),
+			None => out_of_range!(),
+		}
+	}
 
 	def __repr__(&self) -> PyResult<String> {
 		let mut iter = self.lattice_word(py).iter();
