@@ -28,6 +28,10 @@ pub struct TableauCyclicDescentIter<T, U> {
 }
 
 fn is_rectangle(word: &[u8]) -> bool {
+	if word.is_empty() {
+		return true;
+	}
+
 	let min = word[0];
 	let mut max = min;
 
@@ -119,7 +123,28 @@ impl<T> LatticeWord<T>
 		TableauCyclicDescentIter::new(self.inner)
 	}
 
+	#[inline]
 	pub fn promotion(&self, count: Option<usize>) -> Result<LatticeWord<Box<[u8]>>, &'static str> {
+		let mut current = 0;
+		let count = count.unwrap_or(1);
+		self.promotion_helper(|_| {
+			current += 1;
+			current == count
+		})
+	}
+
+	#[inline]
+	pub fn promotion_order(&self) -> Result<usize, &'static str> {
+		let mut order = 0;
+		self.promotion_helper(|word| {
+			order += 1;
+			word == &**self
+		}).map(|_| order)
+	}
+
+	fn promotion_helper<F>(&self, mut f: F) -> Result<LatticeWord<Box<[u8]>>, &'static str>
+		where F: FnMut(&[u8]) -> bool
+	{
 		if !is_rectangle(&*self) {
 			return Err("only implemented for rectangular shapes");
 		}
@@ -131,16 +156,17 @@ impl<T> LatticeWord<T>
 			tracking_shape.set_len(len);
 		}
 
-		let mut res = self.promotion_with_tracking_shape(&mut *tracking_shape);
+		let mut word = self.promotion_with_tracking_shape(&mut *tracking_shape);
 
-		for _ in 1..count.unwrap_or(1) {
-			res = res.promotion_with_tracking_shape(&mut *tracking_shape);
+		loop {
+			if f(&*word) {
+				return Ok(word);
+			}
+			word = word.promotion_with_tracking_shape(&mut *tracking_shape);
 		}
-
-		Ok(res)
 	}
-
-	pub(crate) fn promotion_with_tracking_shape<U>(&self, mut tracking_shape: U) -> LatticeWord<Box<[u8]>>
+	
+	fn promotion_with_tracking_shape<U>(&self, mut tracking_shape: U) -> LatticeWord<Box<[u8]>>
 		where U: Deref<Target = [u8]> + DerefMut
 	{
 		if self.is_empty() {

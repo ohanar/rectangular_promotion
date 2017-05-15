@@ -247,6 +247,16 @@ py_class!(pub class LatticeWord |py| {
 		}
 	}
 
+	def promotion_order(&self) -> PyResult<usize> {
+		match self.lattice_word(py).promotion_order() {
+			Ok(order) => Ok(order),
+			Err(s) => Err(PyErr::new_lazy_init(
+				py.get_type::<NotImplementedError>(),
+				Some(s.to_py_object(py).into_object()),
+			)),
+		}
+	}
+
 	def tableau_cyclic_descents(&self) -> PyResult<TableauCyclicDescentIter> {
 		match self.lattice_word(py).clone().into_tableau_cyclic_descents() {
 			Ok(iter) => TableauCyclicDescentIter::create_instance(py, RefCell::new(iter)),
