@@ -119,13 +119,32 @@ impl<T> LatticeWord<T>
 		TableauCyclicDescentIter::new(self.inner)
 	}
 
-	pub fn promotion(&self) -> Result<LatticeWord<Box<[u8]>>, &'static str> {
-		if self.is_empty() {
-			return Ok(LatticeWord::unchecked_new(Box::new([])));
-		}
-
+	pub fn promotion(&self, count: Option<usize>) -> Result<LatticeWord<Box<[u8]>>, &'static str> {
 		if !is_rectangle(&*self) {
 			return Err("only implemented for rectangular shapes");
+		}
+
+		let len = usize::from(self.last().unwrap() - self.first().unwrap()) + 1;
+
+		let mut tracking_shape = Vec::with_capacity(len);
+		unsafe {
+			tracking_shape.set_len(len);
+		}
+
+		let mut res = self.promotion_with_tracking_shape(&mut *tracking_shape);
+
+		for _ in 1..count.unwrap_or(1) {
+			res = res.promotion_with_tracking_shape(&mut *tracking_shape);
+		}
+
+		Ok(res)
+	}
+
+	pub(crate) fn promotion_with_tracking_shape<U>(&self, mut tracking_shape: U) -> LatticeWord<Box<[u8]>>
+		where U: Deref<Target = [u8]> + DerefMut
+	{
+		if self.is_empty() {
+			return LatticeWord::unchecked_new(Box::new([]));
 		}
 
 		let first = self.first().unwrap();
@@ -141,7 +160,10 @@ impl<T> LatticeWord<T>
 		let mut hole_row = *last;
 		let mut hole_column = 1;
 
-		let mut tracking_shape = vec![0; usize::from(last - first) + 1];
+		for entry in &mut *tracking_shape {
+			*entry = 0;
+		}
+
 		*tracking_shape.last_mut().unwrap() = 1;
 
 		for current_row in new_inner.iter_mut().rev() {
@@ -161,7 +183,7 @@ impl<T> LatticeWord<T>
 			}
 		}
 
-		Ok(LatticeWord::unchecked_new(new_inner))
+		LatticeWord::unchecked_new(new_inner)
 	}
 }
 
@@ -404,19 +426,20 @@ mod test {
 		let raw_lattice_word = [0, 0, 1, 0, 1, 2, 2, 1, 0, 2, 1, 2];
 		let lattice_word = LatticeWord::new(&raw_lattice_word[..]).unwrap();
 
-		let first_promotion = lattice_word.promotion().unwrap();
+		let first_promotion = lattice_word.promotion(None).unwrap();
 
 		assert_eq!(&*first_promotion, &[0, 0, 0, 1, 0, 1, 2, 2, 1, 1, 2, 2]);
 
-		let second_promotion = first_promotion.promotion().unwrap();
+		let second_promotion = first_promotion.promotion(None).unwrap();
 
 		assert_eq!(&*second_promotion, &[0, 1, 0, 0, 1, 0, 1, 2, 2, 2, 1, 2]);
+		assert_eq!(second_promotion, lattice_word.promotion(Some(2)).unwrap());
 
 		let raw_lattice_word = [1, 1, 2, 1, 2, 3, 3, 2, 1, 3, 2, 3];
 		let lattice_word = LatticeWord::new(&raw_lattice_word[..]).unwrap();
 
 		assert_eq!(
-			&*lattice_word.promotion().unwrap(),
+			&*lattice_word.promotion(None).unwrap(),
 			&[1, 1, 1, 2, 1, 2, 3, 3, 2, 2, 3, 3]
 		);
 	}

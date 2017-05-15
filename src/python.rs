@@ -237,8 +237,8 @@ py_class!(pub class LatticeWord |py| {
 		Ok(self.lattice_word(py).major_index())
 	}
 
-	def promotion(&self) -> PyResult<Self> {
-		match self.lattice_word(py).promotion() {
+	def promotion(&self, count: usize = 1) -> PyResult<Self> {
+		match self.lattice_word(py).promotion(Some(count)) {
 			Ok(word) => Self::create_instance(py, word.into()),
 			Err(s) => Err(PyErr::new_lazy_init(
 				py.get_type::<NotImplementedError>(),
