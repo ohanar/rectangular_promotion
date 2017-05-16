@@ -6,6 +6,8 @@ use std::sync::Arc;
 use full_deref::FullDeref;
 use pairs::{EnumeratedPairs, IntoPairs};
 
+use into_iter::IntoIter;
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct LatticeWord<T> {
 	inner: T,
@@ -211,12 +213,11 @@ impl<T> LatticeWord<T>
 
 		LatticeWord::unchecked_new(new_inner)
 	}
-}
 
-#[derive(Clone, Copy, Debug)]
-pub struct IntoIter<T> {
-	inner: T,
-	index: usize,
+	#[inline]
+	pub fn inner(&self) -> &T {
+		&self.inner
+	}
 }
 
 impl<T> IntoIterator for LatticeWord<T>
@@ -227,26 +228,7 @@ impl<T> IntoIterator for LatticeWord<T>
 
 	#[inline]
 	fn into_iter(self) -> Self::IntoIter {
-		IntoIter {
-			inner: self.inner,
-			index: 0,
-		}
-	}
-}
-
-impl<T> Iterator for IntoIter<T>
-	where T: FullDeref<Target = [u8]>
-{
-	type Item = u8;
-
-	#[inline]
-	fn next(&mut self) -> Option<Self::Item> {
-		if let Some(res) = self.inner.full_deref().get(self.index) {
-			self.index += 1;
-			Some(*res)
-		} else {
-			None
-		}
+		IntoIter::new(self.inner)
 	}
 }
 

@@ -6,10 +6,12 @@ extern crate cpython;
 extern crate seahash;
 
 mod full_deref;
+mod into_iter;
 mod lattice_word;
 mod lattice_words;
 mod pairs;
 mod python;
+mod owned_slice;
 
 pub use lattice_word::{LatticeWord, ScentIter, TableauCyclicDescentIter};
 pub use lattice_words::{LatticeWords, LatticeWordsIter, LatticeWordsStreamingIter};

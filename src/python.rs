@@ -2,12 +2,15 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::{cmp, hash};
+use std::ops::Range;
 use std::sync::Arc;
 
-use cpython::{CompareOp, PyClone, PyErr, PyObject, PyResult, PythonObject, ToPyObject};
+use cpython::{CompareOp, FromPyObject, PyClone, PyErr, PyObject, PyResult, PySlice, Python, PythonObject, ToPyObject};
 use cpython::exc::{IndexError, NotImplementedError, ValueError};
 
 use seahash::SeaHasher;
+
+use owned_slice::OwnedSlice;
 
 pub struct SeaHashBuilder;
 
@@ -143,6 +146,212 @@ py_class!(pub class LatticeWordsIter |py| {
 	}
 });
 
+pub enum SliceIndex {
+	Singleton(isize),
+	Range {
+		start: isize,
+		end: isize,
+	},
+	RangeFrom {
+		start: isize,
+	},
+	RangeFull,
+	RangeTo {
+		end: isize,
+	},
+}
+
+impl<'a> FromPyObject<'a> for SliceIndex {
+	#[inline]
+	fn extract(py: Python, obj: &'a PyObject) -> PyResult<Self> {
+		if let Ok(index) = obj.extract::<isize>(py) {
+			return Ok(SliceIndex::Singleton(index));
+		}
+
+		let slice = obj.cast_as::<PySlice>(py)?;
+		let none = py.None();
+
+		if slice.step().as_ptr() != none.as_ptr() {
+			return Err(PyErr::new_lazy_init(
+				py.get_type::<NotImplementedError>(),
+				Some("slices with steps are not implemented".to_py_object(py).into_object()),
+			));
+		}
+
+		macro_rules! extract_value {
+			($value:expr, $none_value:expr) => {{
+				let value = $value;
+
+				if value.as_ptr() == none.as_ptr() {
+					None
+				} else {
+					let value = value.extract::<isize>(py)?;
+
+					if value == $none_value {
+						None
+					} else {
+						Some(value)
+					}
+				}
+			}}
+		}
+
+		let start = extract_value!(slice.start(), 0);
+		let end = extract_value!(slice.stop(), isize::max_value());
+
+		Ok(if let Some(start) = start {
+			if let Some(end) = end {
+				SliceIndex::Range { start, end }
+			} else {
+				SliceIndex::RangeFrom { start }
+			}
+		} else if let Some(end) = end {
+			SliceIndex::RangeTo { end }
+		} else {
+			SliceIndex::RangeFull
+		})
+	}
+}
+
+fn wordslice_getitem(
+	py: Python,
+	(inner, range): (&Arc<Box<[u8]>>, Range<usize>),
+	index: SliceIndex,
+	) -> PyResult<PyObject>
+{
+	macro_rules! out_of_range {
+		() => {
+			return Err(PyErr::new_lazy_init(
+				py.get_type::<IndexError>(),
+				Some("index out of range".to_py_object(py).into_object()),
+			));
+		}
+	}
+
+	let len = range.end - range.start;
+
+	macro_rules! fix_index {
+		($index:expr) => {{
+			let mut index = $index;
+			if index < 0 {
+				index += len as isize;
+				if index < 0 {
+					out_of_range!();
+				}
+			}
+			index as usize
+		}}
+	}
+
+	let range_start = range.start;
+	let range_end = range.end;
+
+	let slice = match index {
+		SliceIndex::Singleton(index) => {
+			let index = fix_index!(index);
+
+			match inner[range].get(index) {
+				Some(value) => return Ok(value.into_py_object(py).into_object()),
+				None => out_of_range!(),
+			}
+		},
+		SliceIndex::Range { start , end } => {
+			let start = fix_index!(start);
+			let end = fix_index!(end);
+
+			if let None = inner[range].get(start..end) {
+				out_of_range!();
+			} else {
+				OwnedSlice::new(inner.clone(), range_start+start..range_start+end)
+			}
+		},
+		SliceIndex::RangeFrom { start } => {
+			let start = fix_index!(start);
+
+			if let None = inner[range].get(start..) {
+				out_of_range!();
+			} else {
+				OwnedSlice::new(inner.clone(), range_start+start..range_end)
+			}
+		},
+		SliceIndex::RangeFull => {
+			OwnedSlice::new(inner.clone(), range)
+		},
+		SliceIndex::RangeTo { end } => {
+			let end = fix_index!(end);
+
+			if let None = inner[range].get(..end) {
+				out_of_range!();
+			} else {
+				OwnedSlice::new(inner.clone(), range_start..range_start+end)
+			}
+		}
+	};
+
+	LatticeWordSlice::create_instance(py, slice).map(|x| x.into_object())
+}
+
+fn lattice_word_repr_helper(slice: &[u8], prefix: &str) -> PyResult<String> {
+	let mut iter = slice.iter();
+
+	Ok(if let Some(first_elt) = iter.next() {
+		let (lower_hint, _) = iter.size_hint();
+
+		if *slice.iter().max().unwrap() < 10 {
+			let mut res = String::with_capacity(prefix.len() + 1 + lower_hint);
+
+			res.push_str(prefix);
+
+			write!(&mut res, "{}", first_elt).unwrap();
+
+			for elt in iter {
+				write!(&mut res, "{}", elt).unwrap();
+			}
+
+			res
+		} else {
+			let mut res = String::with_capacity(prefix.len() + 1 + 3*lower_hint);
+
+			res.push_str(prefix);
+
+			write!(&mut res, "{}", first_elt).unwrap();
+
+			for elt in iter {
+				res.push_str(",");
+				write!(&mut res, "{}", elt).unwrap();
+			}
+
+			res
+		}
+	} else {
+		let mut res = String::with_capacity(6 + prefix.len());
+		res.push_str("empty ");
+		res.push_str(prefix);
+
+		res
+	})
+}
+
+py_class!(pub class LatticeWordSlice |py| {
+	data slice: OwnedSlice<Arc<Box<[u8]>>>;
+
+	def __len__(&self) -> PyResult<usize> {
+		Ok((&self.slice(py)[..]).len())
+	}
+
+	def __getitem__(&self, index: SliceIndex) -> PyResult<PyObject> {
+		wordslice_getitem(py, self.slice(py).inner(), index)
+	}
+
+	def __iter__(&self) -> PyResult<LatticeWordSliceIter> {
+		LatticeWordSliceIter::create_instance(py, RefCell::new(self.slice(py).clone().into_iter()))
+	}
+
+	def __repr__(&self) -> PyResult<String> {
+		lattice_word_repr_helper(&self.slice(py)[..], "lattice word slice ")
+	}
+});
+
 py_class!(pub class LatticeWord |py| {
 	data lattice_word: super::LatticeWord<Arc<Box<[u8]>>>;
 
@@ -174,69 +383,21 @@ py_class!(pub class LatticeWord |py| {
 		Ok(self.lattice_word(py).len())
 	}
 
-	def __getitem__(&self, index: isize) -> PyResult<u8> {
-		macro_rules! out_of_range {
-			() => (Err(PyErr::new_lazy_init(
-				py.get_type::<IndexError>(),
-				Some("index out of range".to_py_object(py).into_object()),
-			)));
-		}
-
-		let mut index = index;
+	def __getitem__(&self, index: SliceIndex) -> PyResult<PyObject> {
 		let lattice_word = self.lattice_word(py);
-
-		if index < 0 {
-			index += lattice_word.len() as isize;
-			if index < 0 {
-				return out_of_range!();
-			}
-		}
-
-		match self.lattice_word(py).get(index as usize) {
-			Some(value) => Ok(*value),
-			None => out_of_range!(),
-		}
+		wordslice_getitem(py, (lattice_word.inner(), 0..lattice_word.len()), index)
 	}
 
 	def __repr__(&self) -> PyResult<String> {
-		let mut iter = self.lattice_word(py).iter();
-
-		Ok(if let Some(first_elt) = iter.next() {
-			let (lower_hint, _) = iter.size_hint();
-
-			if *self.lattice_word(py).iter().max().unwrap() < 10 {
-				let mut res = String::with_capacity(14 + lower_hint);
-
-				res.push_str("lattice word ");
-
-				write!(&mut res, "{}", first_elt).unwrap();
-
-				for elt in iter {
-					write!(&mut res, "{}", elt).unwrap();
-				}
-
-				res
-			} else {
-				let mut res = String::with_capacity(14 + 3*lower_hint);
-
-				res.push_str("lattice_word ");
-
-				write!(&mut res, "{}", first_elt).unwrap();
-
-				for elt in iter {
-					res.push_str(",");
-					write!(&mut res, "{}", elt).unwrap();
-				}
-
-				res
-			}
-		} else {
-			"empty lattice word".to_owned()
-		})
+		lattice_word_repr_helper(&*self.lattice_word(py), "lattice word ")
 	}
 
-	def __iter__(&self) -> PyResult<LatticeWordIter> {
-		LatticeWordIter::create_instance(py, RefCell::new(self.lattice_word(py).clone().into_iter()))
+	def __iter__(&self) -> PyResult<LatticeWordSliceIter> {
+		let lattice_word = self.lattice_word(py);
+		let range = 0..lattice_word.len();
+		let inner = self.lattice_word(py).inner().clone();
+		let slice = OwnedSlice::new(inner, range);
+		LatticeWordSliceIter::create_instance(py, RefCell::new(slice.into_iter()))
 	}
 
 	def descents(&self) -> PyResult<ScentIter> {
@@ -282,8 +443,8 @@ py_class!(pub class LatticeWord |py| {
 	}
 });
 
-py_class!(pub class LatticeWordIter |py| {
-	data iter: RefCell<<super::LatticeWord<Arc<Box<[u8]>>> as IntoIterator>::IntoIter>;
+py_class!(pub class LatticeWordSliceIter |py| {
+	data iter: RefCell<<OwnedSlice<Arc<Box<[u8]>>> as IntoIterator>::IntoIter>;
 
 	def __iter__(&self) -> PyResult<PyObject> {
 		Ok(self.as_object().clone_ref(py))

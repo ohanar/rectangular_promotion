@@ -11,6 +11,6 @@ seahash = "^3.0.5"
 
 [dependencies.cpython]
 git = "https://github.com/ohanar/rust-cpython.git"
-branch = "impl_ToPyObject_for_more_hashers"
+branch = "personal"
 default-features = false
 features = ["python27-sys", "extension-module-2-7"]
