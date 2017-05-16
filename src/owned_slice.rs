@@ -1,3 +1,4 @@
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::ops::{Deref, Range};
 use std::iter::IntoIterator;
 
@@ -23,12 +24,35 @@ impl<T> OwnedSlice<T> {
 	}
 }
 
-impl<T, U> Deref for OwnedSlice<T> where T: FullDeref<Target=[U]> {
+impl<T, U> Deref for OwnedSlice<T> where T: FullDeref<Target = [U]> {
 	type Target = [U];
 
 	#[inline]
 	fn deref(&self) -> &Self::Target {
 		&self.inner.full_deref()[self.start..self.end]
+	}
+}
+
+impl<T, U> PartialEq for OwnedSlice<T> where T: FullDeref<Target = [U]>, [U]: PartialEq {
+	#[inline]
+	fn eq(&self, other: &Self) -> bool {
+		(**self).eq(&**other)
+	}
+}
+
+impl<T, U> Eq for OwnedSlice<T> where T: FullDeref<Target = [U]>, [U]: Eq {}
+
+impl<T, U> PartialOrd for OwnedSlice<T> where T: FullDeref<Target = [U]>, [U]: PartialOrd {
+	#[inline]
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		(**self).partial_cmp(&**other)
+	}
+}
+
+impl<T, U> Ord for OwnedSlice<T> where T: FullDeref<Target = [U]>, [U]: Ord {
+	#[inline]
+	fn cmp(&self, other: &Self) -> Ordering {
+		(**self).cmp(&**other)
 	}
 }
 

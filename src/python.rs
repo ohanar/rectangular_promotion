@@ -350,6 +350,19 @@ py_class!(pub class LatticeWordSlice |py| {
 	def __repr__(&self) -> PyResult<String> {
 		lattice_word_repr_helper(&self.slice(py)[..], "lattice word slice ")
 	}
+
+	def __richcmp__(&self, other: LatticeWordSlice, op: CompareOp) -> PyResult<bool> {
+		let this = self.slice(py);
+		let other = other.slice(py);
+		Ok(match op {
+			CompareOp::Lt => this <  other,
+			CompareOp::Le => this <= other,
+			CompareOp::Eq => this == other,
+			CompareOp::Ne => this != other,
+			CompareOp::Ge => this >= other,
+			CompareOp::Gt => this >  other,
+		})
+	}
 });
 
 py_class!(pub class LatticeWord |py| {
